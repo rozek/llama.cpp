@@ -7,6 +7,8 @@
 
 Inference of [LLaMA](https://arxiv.org/abs/2302.13971) model in pure C/C++
 
+> most of the time, this fork will basically be a copy of the [original](https://github.com/ggerganov/llama.cpp) - it has primarily been created to build nodes and flows for [Node-RED](https://nodered.org/) based on the llama.cpp executable: just have a look at [https://github.com/rozek/node-red-flow-llama](https://github.com/rozek/node-red-flow-llama) and [https://github.com/rozek/node-red-flow-alpaca](https://github.com/rozek/node-red-flow-alpaca).
+
 **Warnings**
 
 - `Q4_2` and `Q4_3` are still in development. Do not expect any kind of backward compatibility until they are finalized
