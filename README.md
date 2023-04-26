@@ -205,8 +205,8 @@ python3 -m pip install -r requirements.txt
 # convert the 7B model to ggml FP16 format
 python3 convert.py models/7B/
 
-# quantize the model to 4-bits (using method 2 = q4_0)
-./quantize ./models/7B/ggml-model-f16.bin ./models/7B/ggml-model-q4_0.bin 2
+# quantize the model to 4-bits (using q4_0 method)
+./quantize ./models/7B/ggml-model-f16.bin ./models/7B/ggml-model-q4_0.bin q4_0
 
 # run the inference
 ./main -m ./models/7B/ggml-model-q4_0.bin -n 128
@@ -243,7 +243,7 @@ Here is an example of a few-shot interaction, invoked with the command
 ./main -m ./models/13B/ggml-model-q4_0.bin -n 256 --repeat_penalty 1.0 --color -i -r "User:" -f prompts/chat-with-bob.txt
 ```
 
-Note the use of `--color` to distinguish between user input and generated text.
+Note the use of `--color` to distinguish between user input and generated text. Other parameters are explained in more detail in the [README](examples/main/README.md) for the `main` example program.
 
 ![image](https://user-images.githubusercontent.com/1991296/224575029-2af3c7dc-5a65-4f64-a6bb-517a532aea38.png)
 
@@ -277,18 +277,19 @@ cadaver, cauliflower, cabbage (vegetable), catalpa (tree) and Cailleach.
 
 ### Using [GPT4All](https://github.com/nomic-ai/gpt4all)
 
-- Obtain the `gpt4all-lora-quantized.bin` model
-- It is distributed in the old `ggml` format, which is now obsoleted
-- You have to convert it to the new format using [./convert-gpt4all-to-ggml.py](./convert-gpt4all-to-ggml.py). You may also need to
-convert the model from the old format to the new format with [./migrate-ggml-2023-03-30-pr613.py](./migrate-ggml-2023-03-30-pr613.py):
+- Obtain the `tokenizer.model` file from LLaMA model and put it to `models`
+- Obtain the `added_tokens.json` file from Alpaca model and put it to `models`
+- Obtain the `gpt4all-lora-quantized.bin` file from GPT4All model and put it to `models/gpt4all-7B`
+- It is distributed in the old `ggml` format which is now obsoleted
+- You have to convert it to the new format using `convert.py`:
 
-  ```bash
-  python3 convert-gpt4all-to-ggml.py models/gpt4all-7B/gpt4all-lora-quantized.bin ./models/tokenizer.model
-  python3 migrate-ggml-2023-03-30-pr613.py models/gpt4all-7B/gpt4all-lora-quantized.bin models/gpt4all-7B/gpt4all-lora-quantized-new.bin
-  ```
+```bash
+python3 convert.py models/gpt4all-7B/gpt4all-lora-quantized.bin
+```
 
-- You can now use the newly generated `gpt4all-lora-quantized-new.bin` model in exactly the same way as all other models
-- The original model is saved in the same folder with a suffix `.orig`
+- You can now use the newly generated `models/gpt4all-7B/ggml-model-q4_0.bin` model in exactly the same way as all other models
+
+- The newer GPT4All-J model is not yet supported!
 
 ### Obtaining and verifying the Facebook LLaMA original model and Stanford Alpaca model data
 
