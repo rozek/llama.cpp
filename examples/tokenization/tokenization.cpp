@@ -81,9 +81,9 @@ int main(int argc, char ** argv) {
     }
 
     for (int i = 0; i < (int) embd_inp.size(); i++) {
-      fprintf("%6d ", embd_inp[i]);
+      printf("%6d ", embd_inp[i]);
     }
-    fprintf("\n");
+    printf("\n");
 
 
     llama_print_timings(ctx);
