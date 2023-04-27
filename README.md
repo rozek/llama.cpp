@@ -7,7 +7,7 @@
 
 Inference of [LLaMA](https://arxiv.org/abs/2302.13971) model in pure C/C++
 
-> most of the time, this fork will basically be a copy of the [original](https://github.com/ggerganov/llama.cpp) - it has primarily been created to build nodes and flows for [Node-RED](https://nodered.org/) based on the llama.cpp executable: just have a look at [https://github.com/rozek/node-red-flow-llama](https://github.com/rozek/node-red-flow-llama) and [https://github.com/rozek/node-red-flow-alpaca](https://github.com/rozek/node-red-flow-alpaca).
+> most of the time, this fork will basically be a copy of the [original](https://github.com/ggerganov/llama.cpp) - it has primarily been created to build nodes and flows for [Node-RED](https://nodered.org/) based on the llama.cpp executable: just have a look at the nodes and flows for [LLaMA](https://github.com/rozek/node-red-flow-llama), [Alpaca](https://github.com/rozek/node-red-flow-alpaca), [Alpaca GPT4](https://github.com/rozek/node-red-flow-gpt4-x-alpaca) and [Vicuna](https://github.com/rozek/node-red-flow-vicuna).
 
 **Warnings**
 
