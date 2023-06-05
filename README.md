@@ -7,6 +7,8 @@
 
 Inference of [LLaMA](https://arxiv.org/abs/2302.13971) model in pure C/C++
 
+> this fork currently adds a tokenization example to the original repo
+
 **Hot topics:**
 
 - GPU support with Metal (Apple Silicon): https://github.com/ggerganov/llama.cpp/pull/1642
