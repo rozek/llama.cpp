@@ -40,8 +40,11 @@ endif
 #
 
 # keep standard at C11 and C++11
-CFLAGS   = -I.              -O3 -std=c11   -fPIC
-CXXFLAGS = -I. -I./examples -O3 -std=c++11 -fPIC
+# -Ofast tends to produce faster code, but may not be available for some compilers.
+#OPT = -Ofast
+OPT = -O3
+CFLAGS   = -I.              $(OPT) -std=c11   -fPIC
+CXXFLAGS = -I. -I./examples $(OPT) -std=c++11 -fPIC
 LDFLAGS  =
 
 ifdef LLAMA_DEBUG
@@ -104,6 +107,10 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 	# Usage AVX-only
 	#CFLAGS   += -mfma -mf16c -mavx
 	#CXXFLAGS += -mfma -mf16c -mavx
+
+	# Usage SSSE3-only (Not is SSE3!)
+	#CFLAGS   += -mssse3
+	#CXXFLAGS += -mssse3
 endif
 
 ifneq ($(filter ppc64%,$(UNAME_M)),)
@@ -116,6 +123,12 @@ ifneq ($(filter ppc64%,$(UNAME_M)),)
 	ifeq ($(UNAME_M),ppc64)
 		CXXFLAGS += -std=c++23 -DGGML_BIG_ENDIAN
 	endif
+endif
+
+ifndef LLAMA_NO_K_QUANTS
+	CFLAGS   += -DGGML_USE_K_QUANTS
+	CXXFLAGS += -DGGML_USE_K_QUANTS
+	OBJS     += k_quants.o
 endif
 
 ifndef LLAMA_NO_ACCELERATE
@@ -137,7 +150,7 @@ ifdef LLAMA_OPENBLAS
 endif # LLAMA_OPENBLAS
 
 ifdef LLAMA_BLIS
-	CFLAGS += -DGGML_USE_OPENBLAS -I/usr/local/include/blis -I/usr/include/blis
+	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/blis -I/usr/include/blis
 	LDFLAGS += -lblis -L/usr/local/lib
 endif # LLAMA_BLIS
 
@@ -209,6 +222,11 @@ ifneq ($(filter armv8%,$(UNAME_M)),)
 	CFLAGS += -mfp16-format=ieee -mno-unaligned-access
 endif
 
+ifdef LLAMA_NO_K_QUANTS
+k_quants.o: k_quants.c k_quants.h
+	$(CC) $(CFLAGS) -c $< -o $@
+endif # LLAMA_NO_K_QUANTS
+
 #
 # Print build information
 #
@@ -247,22 +265,22 @@ clean:
 # Examples
 #
 
-main: examples/main/main.cpp build-info.h ggml.o llama.o common.o $(OBJS)
+main: examples/main/main.cpp                                  build-info.h ggml.o llama.o common.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 	@echo
 	@echo '====  Run ./main -h for help.  ===='
 	@echo
 
-quantize: examples/quantize/quantize.cpp build-info.h ggml.o llama.o $(OBJS)
+quantize: examples/quantize/quantize.cpp                      build-info.h ggml.o llama.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
-quantize-stats: examples/quantize-stats/quantize-stats.cpp build-info.h ggml.o llama.o $(OBJS)
+quantize-stats: examples/quantize-stats/quantize-stats.cpp    build-info.h ggml.o llama.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
-perplexity: examples/perplexity/perplexity.cpp build-info.h ggml.o llama.o common.o $(OBJS)
+perplexity: examples/perplexity/perplexity.cpp                build-info.h ggml.o llama.o common.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
-embedding: examples/embedding/embedding.cpp build-info.h ggml.o llama.o common.o $(OBJS)
+embedding: examples/embedding/embedding.cpp                   build-info.h ggml.o llama.o common.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
 tokenization: examples/tokenization/tokenization.cpp build-info.h ggml.o llama.o common.o $(OBJS)
