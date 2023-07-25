@@ -241,8 +241,25 @@ In order to build llama.cpp you have three different options.
 - Using `Zig`:
 
     ```bash
-    zig build -Drelease-fast
+    zig build -Doptimize=ReleaseFast
     ```
+
+-   Using `gmake` (FreeBSD):
+
+    1. Install and activate [DRM in FreeBSD](https://wiki.freebsd.org/Graphics)
+    2. Add your user to **video** group
+    3. Install compilation dependencies.
+
+        ```bash
+        sudo pkg install gmake automake autoconf pkgconf llvm15 clinfo clover \
+            opencl clblast openblas
+
+            gmake CC=/usr/local/bin/clang15 CXX=/usr/local/bin/clang++15 -j4
+        ```
+
+    **Notes:** With this packages you can build llama.cpp with OPENBLAS and
+    CLBLAST support for use OpenCL GPU acceleration in FreeBSD. Please read
+    the instructions for use and activate this options in this document below.
 
 ### Metal Build
 
@@ -268,6 +285,45 @@ Any value larger than 0 will offload the computation to the GPU. For example:
 
 ```bash
 ./main -m ./models/7B/ggml-model-q4_0.bin -n 128 -ngl 1
+```
+
+### MPI Build
+
+MPI lets you distribute the computation over a cluster of machines. Because of the serial nature of LLM prediction, this won't yield any end-to-end speed-ups, but it will let you run larger models than would otherwise fit into RAM on a single machine.
+
+First you will need MPI libraries installed on your system. The two most popular (only?) options are [MPICH](https://www.mpich.org) and [OpenMPI](https://www.open-mpi.org). Either can be installed with a package manager (`apt`, Homebrew, MacPorts, etc).
+
+Next you will need to build the project with `LLAMA_MPI` set to true on all machines; if you're building with `make`, you will also need to specify an MPI-capable compiler (when building with CMake, this is configured automatically):
+
+- Using `make`:
+
+  ```bash
+  make CC=mpicc CXX=mpicxx LLAMA_MPI=1
+  ```
+
+- Using `CMake`:
+
+  ```bash
+  cmake -S . -B build -DLLAMA_MPI=ON
+  ```
+
+Once the programs are built, download/convert the weights on all of the machines in your cluster. The paths to the weights and programs should be identical on all machines.
+
+Next, ensure password-less SSH access to each machine from the primary host, and create a `hostfile` with a list of the hostnames and their relative "weights" (slots). If you want to use localhost for computation, use its local subnet IP address rather than the loopback address or "localhost".
+
+Here is an example hostfile:
+
+```
+192.168.0.1:2
+malvolio.local:1
+```
+
+The above will distribute the computation across 2 processes on the first host and 1 process on the second host. Each process will use roughly an equal amount of RAM. Try to keep these numbers small, as inter-process (intra-host) communication is expensive.
+
+Finally, you're ready to run a computation using `mpirun`:
+
+```bash
+mpirun -hostfile hostfile -n 3 ./main -m ./models/7B/ggml-model-q4_0.bin -n 128
 ```
 
 ### BLAS Build
@@ -347,7 +403,7 @@ Building the program with BLAS support may lead to some performance improvements
 
   | Option                  | Legal values           | Default | Description |
   |-------------------------|------------------------|---------|-------------|
-  | LLAMA_CUDA_FORCE_DMMV   | Boolean                |   false | Force the use of dequantization + matrix vector multiplication kernels instead of using kernels that do matrix vector multiplication on quantized data. By default the decision is made based on compute capability (MMVQ for 7.0/Turing/RTX 2000 or higher). Does not affect k-quants. |
+  | LLAMA_CUDA_FORCE_DMMV   | Boolean                |   false | Force the use of dequantization + matrix vector multiplication kernels instead of using kernels that do matrix vector multiplication on quantized data. By default the decision is made based on compute capability (MMVQ for 6.1/Pascal/GTX 1000 or higher). Does not affect k-quants. |
   | LLAMA_CUDA_DMMV_X       | Positive integer >= 32 |      32 | Number of values in x direction processed by the CUDA dequantization + matrix vector multiplication kernel per iteration. Increasing this value can improve performance on fast GPUs. Power of 2 heavily recommended. Does not affect k-quants. |
   | LLAMA_CUDA_MMV_Y       | Positive integer       |       1 | Block size in y direction for the CUDA mul mat vec kernels. Increasing this value can improve performance on fast GPUs. Power of 2 recommended. Does not affect k-quants. |
   | LLAMA_CUDA_DMMV_F16     | Boolean                |   false | If enabled, use half-precision floating point arithmetic for the CUDA dequantization + mul mat vec kernels. Can improve performance on relatively recent GPUs. |
@@ -603,7 +659,7 @@ Please verify the [sha256 checksums](SHA256SUMS) of all downloaded model files t
 
 ```bash
 # run the verification script
-python3 .\scripts\verify-checksum-models.py
+./scripts/verify-checksum-models.py
 ```
 
 - On linux or macOS it is also possible to run the following commands to verify if you have all possible latest files in your self-installed `./models` subdirectory:
@@ -697,7 +753,7 @@ export LD_LIBRARY_PATH=/vendor/lib64:$LD_LIBRARY_PATH
 
 For easy and swift re-execution, consider documenting this final part in a .sh script file. This will enable you to rerun the process with minimal hassle.
 
-Place your desired model into the `/llama.cpp/models/` directory and execute the `./main (...)` script.
+Place your desired model into the `~/llama.cpp/models/` directory and execute the `./main (...)` script.
 
 ### Docker
 
@@ -785,5 +841,10 @@ docker run --gpus all -v /path/to/models:/models local/llama.cpp:light-cuda -m /
 
 ### Docs
 
-- [GGML tips & tricks](https://github.com/ggerganov/llama.cpp/wiki/GGML-Tips-&-Tricks)
+- [main](./examples/main/README.md)
+- [server](./examples/server/README.md)
+- [embd-input](./examples/embd-input/README.md)
+- [jeopardy](./examples/jeopardy/README.md)
+- [BLIS](./docs/BLIS.md)
 - [Performance troubleshooting](./docs/token_generation_performance_tips.md)
+- [GGML tips & tricks](https://github.com/ggerganov/llama.cpp/wiki/GGML-Tips-&-Tricks)
