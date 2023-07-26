@@ -1,5 +1,5 @@
 # Define the default target now so that it is always the first target
-BUILD_TARGETS = main quantize quantize-stats perplexity embedding vdot train-text-from-scratch simple server embd-input-test
+BUILD_TARGETS = main quantize quantize-stats perplexity embedding tokenization vdot train-text-from-scratch simple server embd-input-test
 
 # Binaries only useful for tests
 TEST_TARGETS = tests/test-double-float tests/test-grad0 tests/test-opt tests/test-quantize-fns tests/test-quantize-perf tests/test-sampling tests/test-tokenizer-0
