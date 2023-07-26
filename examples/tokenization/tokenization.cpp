@@ -4,9 +4,12 @@
 
 #include <ctime>
 
+#if defined(_MSC_VER)
+#pragma warning(disable: 4244 4267) // possible loss of data
+#endif
+
 int main(int argc, char ** argv) {
     gpt_params params;
-    params.model = "models/llama-7B/ggml-model.bin";
 
     if (gpt_params_parse(argc, argv, params) == false) {
         return 1;
@@ -14,12 +17,12 @@ int main(int argc, char ** argv) {
 
     params.embedding = false;
 
-    if (params.n_ctx > 2048) {
-        fprintf(stderr, "%s: warning: model does not support context sizes greater than 2048 tokens (%d specified);"
+    if (params.n_ctx > 4096) {
+        fprintf(stderr, "%s: warning: model does not support context sizes greater than 4096 tokens (%d specified);"
                 "expect poor results\n", __func__, params.n_ctx);
     }
 
-    if (params.seed <= 0) {
+    if (params.seed == LLAMA_DEFAULT_SEED) {
         params.seed = time(NULL);
     }
 
@@ -30,13 +33,14 @@ int main(int argc, char ** argv) {
         params.prompt = gpt_random_prompt(rng);
     }
 
-    llama_init_backend();
+    llama_backend_init(params.numa);
 
+    llama_model * model;
     llama_context * ctx;
 
     // load the model
-    ctx = llama_init_from_gpt_params(params);
-    if (ctx == NULL) {
+    std::tie(model, ctx) = llama_init_from_gpt_params(params);
+    if (model == NULL) {
         fprintf(stderr, "%s: error: unable to load model\n", __func__);
         return 1;
     }
@@ -47,8 +51,6 @@ int main(int argc, char ** argv) {
         fprintf(stderr, "system_info: n_threads = %d / %d | %s\n",
                 params.n_threads, std::thread::hardware_concurrency(), llama_print_system_info());
     }
-
-    int n_past = 0;
 
     // Add a space in front of the first character to match OG llama tokenizer behavior
     params.prompt.insert(0, 1, ' ');
@@ -74,6 +76,9 @@ int main(int argc, char ** argv) {
 
     llama_print_timings(ctx);
     llama_free(ctx);
+    llama_free_model(model);
+
+    llama_backend_free();
 
     return 0;
 }
