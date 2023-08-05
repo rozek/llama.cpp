@@ -71,7 +71,6 @@ int main(int argc, char ** argv) {
     printf("%d ", (int) embd_inp.size());
     printf("\n");
 
-
     llama_print_timings(ctx);
     llama_free(ctx);
     llama_free_model(model);
