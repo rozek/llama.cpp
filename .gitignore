@@ -1,5 +1,6 @@
 *.o
 *.a
+*.so
 .DS_Store
 .build/
 .cache/
@@ -7,6 +8,7 @@
 .envrc
 .swiftpm
 .venv
+.clang-tidy
 .vs/
 .vscode/
 
@@ -14,12 +16,21 @@ build/
 build-em/
 build-debug/
 build-release/
+build-ci-debug/
+build-ci-release/
 build-static/
+build-cublas/
+build-opencl/
+build-metal/
+build-mpi/
 build-no-accel/
 build-sanitize-addr/
 build-sanitize-thread/
+out/
+tmp/
 
 models/*
+models-mnt
 
 /main
 /quantize
@@ -27,12 +38,18 @@ models/*
 /result
 /perplexity
 /embedding
-/benchmark-q4_0-matmult
+/train-text-from-scratch
+/simple
+/benchmark-matmult
 /vdot
+/server
 /Pipfile
-
+/embd-input-test
+/libllama.so
+build-info.h
 arm_neon.h
 compile_commands.json
+CMakeSettings.json
 
 __pycache__
 
@@ -40,3 +57,22 @@ zig-out/
 zig-cache/
 
 ppl-*.txt
+qnt-*.txt
+perf-*.txt
+
+examples/jeopardy/results.txt
+
+
+pyproject.toml
+poetry.lock
+poetry.toml
+
+# Test binaries
+tests/test-double-float
+tests/test-grad0
+tests/test-opt
+tests/test-quantize-fns
+tests/test-quantize-perf
+tests/test-sampling
+tests/test-tokenizer-0
+

@@ -1,11 +1,15 @@
 #include "common.h"
 #include "llama.h"
+#include "build-info.h"
 
 #include <ctime>
 
+#if defined(_MSC_VER)
+#pragma warning(disable: 4244 4267) // possible loss of data
+#endif
+
 int main(int argc, char ** argv) {
     gpt_params params;
-    params.model = "models/llama-7B/ggml-model.bin";
 
     if (gpt_params_parse(argc, argv, params) == false) {
         return 1;
@@ -13,43 +17,34 @@ int main(int argc, char ** argv) {
 
     params.embedding = true;
 
-    if (params.n_ctx > 2048) {
-        fprintf(stderr, "%s: warning: model does not support context sizes greater than 2048 tokens (%d specified);"
+    if (params.n_ctx > 4096) {
+        fprintf(stderr, "%s: warning: model might not support context sizes greater than 4096 tokens (%d specified);"
                 "expect poor results\n", __func__, params.n_ctx);
     }
 
-    if (params.seed <= 0) {
+    fprintf(stderr, "%s: build = %d (%s)\n", __func__, BUILD_NUMBER, BUILD_COMMIT);
+
+    if (params.seed == LLAMA_DEFAULT_SEED) {
         params.seed = time(NULL);
     }
 
-    fprintf(stderr, "%s: seed = %d\n", __func__, params.seed);
+    fprintf(stderr, "%s: seed  = %u\n", __func__, params.seed);
 
     std::mt19937 rng(params.seed);
     if (params.random_prompt) {
         params.prompt = gpt_random_prompt(rng);
     }
 
+    llama_backend_init(params.numa);
+
+    llama_model * model;
     llama_context * ctx;
 
     // load the model
-    {
-        auto lparams = llama_context_default_params();
-
-        lparams.n_ctx      = params.n_ctx;
-        lparams.n_parts    = params.n_parts;
-        lparams.seed       = params.seed;
-        lparams.f16_kv     = params.memory_f16;
-        lparams.logits_all = params.perplexity;
-        lparams.use_mmap   = params.use_mmap;
-        lparams.use_mlock  = params.use_mlock;
-        lparams.embedding  = params.embedding;
-
-        ctx = llama_init_from_file(params.model.c_str(), lparams);
-
-        if (ctx == NULL) {
-            fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, params.model.c_str());
-            return 1;
-        }
+    std::tie(model, ctx) = llama_init_from_gpt_params(params);
+    if (model == NULL) {
+        fprintf(stderr, "%s: error: unable to load model\n", __func__);
+        return 1;
     }
 
     // print system information
@@ -66,9 +61,6 @@ int main(int argc, char ** argv) {
 
     // tokenize the prompt
     auto embd_inp = ::llama_tokenize(ctx, params.prompt, true);
-
-    // determine newline token
-    auto llama_token_newline = ::llama_tokenize(ctx, "\n", false);
 
     if (params.verbose_prompt) {
         fprintf(stderr, "\n");
@@ -99,6 +91,9 @@ int main(int argc, char ** argv) {
 
     llama_print_timings(ctx);
     llama_free(ctx);
+    llama_free_model(model);
+
+    llama_backend_free();
 
     return 0;
 }
