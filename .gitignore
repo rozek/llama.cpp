@@ -38,6 +38,8 @@ models-mnt
 /result
 /perplexity
 /embedding
+/tokencount
+/tokenization
 /train-text-from-scratch
 /simple
 /benchmark-matmult
