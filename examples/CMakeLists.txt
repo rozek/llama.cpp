@@ -13,6 +13,8 @@ set(TARGET common)
 add_library(${TARGET} OBJECT
     common.h
     common.cpp
+    console.h
+    console.cpp
     grammar-parser.h
     grammar-parser.cpp
     )
@@ -36,6 +38,7 @@ else()
     add_subdirectory(quantize-stats)
     add_subdirectory(perplexity)
     add_subdirectory(embedding)
+    add_subdirectory(tokencount)
     add_subdirectory(tokenization)
     add_subdirectory(save-load-state)
     add_subdirectory(benchmark)
