@@ -9,6 +9,8 @@
 
 Inference of [LLaMA](https://arxiv.org/abs/2302.13971) model in pure C/C++
 
+> this fork just adds a tokenization and token counter example to the original repo
+
 ### Hot topics
 
 - #### IMPORTANT: Tokenizer fixes and API change (developers and projects using `llama.cpp` built-in tokenization must read): https://github.com/ggerganov/llama.cpp/pull/2810
