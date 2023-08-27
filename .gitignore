@@ -29,6 +29,8 @@ models-mnt
 /result
 /perplexity
 /embedding
+/tokencount
+/tokenization
 /train-text-from-scratch
 /convert-llama2c-to-ggml
 /simple
