@@ -9,7 +9,7 @@
 
 Inference of [LLaMA](https://arxiv.org/abs/2302.13971) model in pure C/C++
 
-> this fork just adds a tokenization and token counter example to the original repo
+> this fork just changes the context size limit to 16384 (for CodeLLaMA) and adds both a tokenization and a token counter example to the original repo
 
 ### Hot topics
 
