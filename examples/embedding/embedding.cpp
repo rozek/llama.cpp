@@ -17,8 +17,8 @@ int main(int argc, char ** argv) {
 
     params.embedding = true;
 
-    if (params.n_ctx > 2048) {
-        fprintf(stderr, "%s: warning: model might not support context sizes greater than 2048 tokens (%d specified);"
+    if (params.n_ctx > 16384) {
+        fprintf(stderr, "%s: warning: model might not support context sizes greater than 16384 tokens (%d specified);"
                 "expect poor results\n", __func__, params.n_ctx);
     }
 
