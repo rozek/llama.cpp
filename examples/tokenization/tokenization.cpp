@@ -63,7 +63,7 @@ int main(int argc, char ** argv) {
     }
 
     for (int i = 0; i < (int) embd_inp.size(); i++) {
-      printf("%6d %s\n", embd_inp[i], llama_token_to_str(ctx, embd_inp[i]));
+      printf("%6d %s\n", embd_inp[i], llama_token_to_piece(ctx, embd_inp[i]).c_str());
     }
     printf("\n");
 
