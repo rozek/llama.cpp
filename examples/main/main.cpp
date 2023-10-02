@@ -148,9 +148,9 @@ int main(int argc, char ** argv) {
         LOG_TEE("%s: warning: scaling RoPE frequency by %g (default 1.0)\n", __func__, params.rope_freq_scale);
     }
 
-    if (params.n_ctx > 32768) {
+    if (params.n_ctx > 16384) {
         // TODO: determine the actual max context of the model (e.g. 4096 for LLaMA v2) and use that instead of 2048
-        LOG_TEE("%s: warning: base model only supports context sizes no greater than 32768 tokens (%d specified)\n", __func__, params.n_ctx);
+        LOG_TEE("%s: warning: base model only supports context sizes no greater than 16384 tokens (%d specified)\n", __func__, params.n_ctx);
     } else if (params.n_ctx != 0 && params.n_ctx < 8) {
         LOG_TEE("%s: warning: minimum context size is 8, using minimum size.\n", __func__);
         params.n_ctx = 8;
