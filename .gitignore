@@ -59,6 +59,8 @@ models-mnt
 /parallel
 /train-text-from-scratch
 /vdot
+/tokencount
+/tokenization
 build-info.h
 arm_neon.h
 compile_commands.json
