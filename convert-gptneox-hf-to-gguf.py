@@ -11,10 +11,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import gguf
 import numpy as np
 import torch
 from transformers import AutoTokenizer  # type: ignore[import]
+
+if 'NO_LOCAL_GGUF' not in os.environ:
+    sys.path.insert(1, str(Path(__file__).parent / 'gguf-py' / 'gguf'))
+import gguf
 
 # ref: https://github.com/openai/gpt-2/blob/master/src/encoder.py
 
@@ -53,10 +56,22 @@ def count_model_parts(dir_model: Path) -> int:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Convert a GPT-NeoX model to a GGML compatible file")
-    parser.add_argument("--vocab-only",  action="store_true",    help="extract only the vocab")
-    parser.add_argument("--outfile",     type=Path,              help="path to write to; default: based on input")
-    parser.add_argument("model",         type=Path,              help="directory containing model file, or model file itself (*.bin)")
-    parser.add_argument("ftype",     type=int, choices=[0, 1],   help="output format - use 0 for float32, 1 for float16", default = 1)
+    parser.add_argument(
+        "--vocab-only", action="store_true",
+        help="extract only the vocab",
+    )
+    parser.add_argument(
+        "--outfile", type=Path,
+        help="path to write to; default: based on input",
+    )
+    parser.add_argument(
+        "model", type=Path,
+        help="directory containing model file, or model file itself (*.bin)",
+    )
+    parser.add_argument(
+        "ftype", type=int, choices=[0, 1], default=1, nargs='?',
+        help="output format - use 0 for float32, 1 for float16",
+    )
     return parser.parse_args()
 
 args = parse_args()

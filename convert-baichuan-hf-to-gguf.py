@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# 7b pth llama --> gguf conversion
-# Only models with a single datafile are supported, like 7B
-# HF files required in the model dir: config.json tokenizer_config.json tokenizer.json tokenizer.model
+# HF baichuan --> gguf conversion
 
 from __future__ import annotations
 
@@ -12,35 +10,69 @@ import struct
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
+import itertools
 import gguf
 import numpy as np
 import torch
 from sentencepiece import SentencePieceProcessor  # type: ignore[import]
+
 
 if TYPE_CHECKING:
     from typing import TypeAlias
 
 NDArray: TypeAlias = 'np.ndarray[Any, Any]'
 
+# reverse HF permute back to original pth layout
 
-def count_model_parts(dir_model: Path) -> int:
+
+def reverse_hf_permute(weights: NDArray, n_head: int, n_kv_head: int | None = None) -> NDArray:
+    if n_kv_head is not None and n_head != n_kv_head:
+        n_head //= n_kv_head
+
+    return (weights.reshape(n_head, 2, weights.shape[0] // n_head // 2, *weights.shape[1:])
+            .swapaxes(1, 2)
+            .reshape(weights.shape))
+
+def reverse_hf_permute_part(weights: NDArray, n_part: int, n_head: int, n_head_kv: int| None = None) -> NDArray:
+        r = weights.shape[0] // 3
+        return (reverse_hf_permute(weights[r * n_part : r * n_part + r, ...], n_head, n_head_kv))
+
+def reverse_hf_part(weights: NDArray, n_part: int) -> NDArray:
+        r = weights.shape[0] // 3
+        return weights[r * n_part : r * n_part + r, ...]
+
+def count_model_parts(dir_model: str) -> int:
     num_parts = 0
+
     for filename in os.listdir(dir_model):
-        if filename.startswith("consolidated."):
+        if filename.startswith("pytorch_model-"):
             num_parts += 1
 
     if num_parts > 0:
         print("gguf: found " + str(num_parts) + " model parts")
+
     return num_parts
 
 
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Convert a PyTorch 7B LLaMA model to a GGML compatible file")
-    parser.add_argument("--vocab-only",  action="store_true",    help="extract only the vocab")
-    parser.add_argument("--outfile",     type=Path,              help="path to write to; default: based on input")
-    parser.add_argument("model",         type=Path,              help="directory containing model file, or model file itself (*.bin)")
-    parser.add_argument("ftype",     type=int, choices=[0, 1],   help="output format - use 0 for float32, 1 for float16", default = 1)
+    parser = argparse.ArgumentParser(description="Convert a HuggingFace LLaMA model to a GGML compatible file")
+    parser.add_argument(
+        "--vocab-only", action="store_true",
+        help="extract only the vocab",
+    )
+    parser.add_argument(
+        "--outfile", type=Path,
+        help="path to write to; default: based on input",
+    )
+    parser.add_argument(
+        "model", type=Path,
+        help="directory containing model file, or model file itself (*.bin)",
+    )
+    parser.add_argument(
+        "ftype", type=int, choices=[0, 1], default=1, nargs='?',
+        help="output format - use 0 for float32, 1 for float16",
+    )
     return parser.parse_args()
 
 args = parse_args()
@@ -68,22 +100,17 @@ print("gguf: loading model "+dir_model.name)
 
 with open(dir_model / "config.json", "r", encoding="utf-8") as f:
     hparams = json.load(f)
-
-if hparams["architectures"][0] != "LlamaForCausalLM":
+print("hello print: ",hparams["architectures"][0])
+if hparams["architectures"][0] != "BaichuanForCausalLM":
     print("Model architecture not supported: " + hparams["architectures"][0])
+
     sys.exit()
 
 # get number of model parts
 num_parts = count_model_parts(dir_model)
-
-if num_parts > 1:
-    print("gguf: Only models with a single datafile are supported.")
-
-    sys.exit()
-
-ARCH=gguf.MODEL_ARCH.LLAMA
+print(f"num_parts:{num_parts}\n")
+ARCH=gguf.MODEL_ARCH.BAICHUAN
 gguf_writer = gguf.GGUFWriter(fname_out, gguf.MODEL_ARCH_NAMES[ARCH])
-
 
 print("gguf: get model metadata")
 
@@ -104,6 +131,8 @@ if "max_sequence_length" in hparams:
     ctx_length = hparams["max_sequence_length"]
 elif "max_position_embeddings" in hparams:
     ctx_length = hparams["max_position_embeddings"]
+elif "model_max_length" in hparams:
+    ctx_length = hparams["model_max_length"]
 else:
     print("gguf: can not find ctx length parameter.")
 
@@ -142,7 +171,7 @@ if not tokenizer_model_file.is_file():
     sys.exit(1)
 
 # vocab type sentencepiece
-print("gguf: get sentencepiece tokenizer vocab and scores")
+print("gguf: get sentencepiece tokenizer vocab, scores and token types")
 
 tokenizer = SentencePieceProcessor(str(tokenizer_model_file))
 
@@ -183,6 +212,7 @@ if added_tokens_file.is_file():
             scores.append(-1000.0)
             toktypes.append(4) # user-defined token type
 
+
 gguf_writer.add_tokenizer_model("llama")
 gguf_writer.add_token_list(tokens)
 gguf_writer.add_token_scores(scores)
@@ -198,7 +228,13 @@ tensor_map = gguf.get_tensor_name_map(ARCH,block_count)
 # tensor info
 print("gguf: get tensor metadata")
 
-part_names = (f"consolidated.{n:02}.pth" for n in range(0, num_parts))
+if num_parts == 0:
+    part_names = iter(("pytorch_model.bin",))
+else:
+    part_names = (
+        f"pytorch_model-{n:05}-of-{num_parts:05}.bin" for n in range(1, num_parts + 1)
+    )
+
 
 for part_name in part_names:
     if args.vocab_only:
@@ -206,11 +242,19 @@ for part_name in part_names:
     print("gguf: loading model part '" + part_name + "'")
     model_part = torch.load(f"{dir_model}/{part_name}", map_location="cpu")
 
+    tmp=model_part
+    for i in range(block_count):
+        if f"model.layers.{i}.self_attn.W_pack.weight" in model_part:
+            print(f"Unpacking and permuting layer {i}")
+            tmp[f"model.layers.{i}.self_attn.q_proj.weight"]=reverse_hf_permute_part(model_part[f"model.layers.{i}.self_attn.W_pack.weight"],0,head_count,head_count)
+            tmp[f"model.layers.{i}.self_attn.k_proj.weight"]=reverse_hf_permute_part(model_part[f"model.layers.{i}.self_attn.W_pack.weight"],1,head_count,head_count_kv)
+            tmp[f"model.layers.{i}.self_attn.v_proj.weight"]=reverse_hf_part(model_part[f"model.layers.{i}.self_attn.W_pack.weight"],2)
+            del tmp[f"model.layers.{i}.self_attn.W_pack.weight"]
+
     for name in model_part.keys():
         data = model_part[name]
-
         # we don't need these
-        if name == "rope.freqs":
+        if name.endswith(".rotary_emb.inv_freq"):
             continue
 
         old_dtype = data.dtype
@@ -242,8 +286,7 @@ for part_name in part_names:
         if ftype == 1 and data_dtype == np.float32 and name.endswith(".weight") and n_dims == 2:
             data = data.astype(np.float16)
 
-        print(new_name + ", n_dims = " + str(n_dims) + ", " + str(old_dtype) + " --> " + str(data.dtype))
-
+        print(name + " -> " +  new_name + ", n_dims = " + str(n_dims) + ", " + str(old_dtype) + " --> " + str(data.dtype))
         gguf_writer.add_tensor(new_name, data)
 
 
