@@ -554,6 +554,9 @@ int main(int argc, char ** argv) {
                 if (i > 0) {
                     embd.erase(embd.begin(), embd.begin() + i);
                 }
+
+                // remove any "future" tokens that we might have inherited from the session from the KV cache
+                llama_kv_cache_tokens_rm(ctx, n_past, -1);
             }
 
             // evaluate tokens in batches
@@ -678,7 +681,7 @@ int main(int argc, char ** argv) {
             }
             fflush(stdout);
         }
-        // reset color to default if we there is no pending user input
+        // reset color to default if there is no pending user input
         if (input_echo && (int) embd_inp.size() == n_consumed) {
             console::set_display(console::reset);
         }
@@ -705,10 +708,8 @@ int main(int argc, char ** argv) {
                     if (last_output.find(antiprompt, search_start_pos) != std::string::npos) {
                         if (params.interactive) {
                             is_interacting = true;
-                            console::set_display(console::user_input);
                         }
                         is_antiprompt = true;
-                        fflush(stdout);
                         break;
                     }
                 }
@@ -732,8 +733,6 @@ int main(int argc, char ** argv) {
 
                     is_interacting = true;
                     printf("\n");
-                    console::set_display(console::user_input);
-                    fflush(stdout);
                 } else if (params.instruct) {
                     is_interacting = true;
                 }
@@ -757,6 +756,9 @@ int main(int argc, char ** argv) {
                     buffer += params.input_prefix;
                     printf("%s", buffer.c_str());
                 }
+
+                // color user input only
+                console::set_display(console::user_input);
 
                 std::string line;
                 bool another_line = true;
