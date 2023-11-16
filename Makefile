@@ -601,10 +601,10 @@ quantize-stats: examples/quantize-stats/quantize-stats.cpp    build-info.o ggml.
 perplexity: examples/perplexity/perplexity.cpp                ggml.o llama.o $(COMMON_DEPS) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
-tokencount: examples/tokencount/tokencount.cpp build-info.h ggml.o llama.o common.o $(OBJS)
+tokencount: examples/tokencount/tokencount.cpp                ggml.o llama.o $(COMMON_DEPS) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
-tokenization: examples/tokenization/tokenization.cpp build-info.h ggml.o llama.o common.o $(OBJS)
+tokenization: examples/tokenization/tokenization.cpp          ggml.o llama.o $(COMMON_DEPS) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
 save-load-state: examples/save-load-state/save-load-state.cpp build-info.h ggml.o llama.o common.o $(OBJS)
