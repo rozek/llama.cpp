@@ -17,8 +17,8 @@ int main(int argc, char ** argv) {
 
     params.embedding = false;
 
-    if (params.n_ctx > 4096) {
-        fprintf(stderr, "%s: warning: model does not support context sizes greater than 4096 tokens (%d specified);"
+    if (params.n_ctx > 16384) {
+        fprintf(stderr, "%s: warning: model does not support context sizes greater than 16384 tokens (%d specified);"
                 "expect poor results\n", __func__, params.n_ctx);
     }
 
@@ -52,9 +52,6 @@ int main(int argc, char ** argv) {
                 params.n_threads, std::thread::hardware_concurrency(), llama_print_system_info());
     }
 
-    // Add a space in front of the first character to match OG llama tokenizer behavior
-    params.prompt.insert(0, 1, ' ');
-
     // tokenize the prompt
     auto embd_inp = ::llama_tokenize(ctx, params.prompt, true);
 
@@ -63,7 +60,7 @@ int main(int argc, char ** argv) {
         fprintf(stderr, "%s: prompt: '%s'\n", __func__, params.prompt.c_str());
         fprintf(stderr, "%s: number of tokens in prompt = %zu\n", __func__, embd_inp.size());
         for (int i = 0; i < (int) embd_inp.size(); i++) {
-            fprintf(stderr, "%6d -> '%s'\n", embd_inp[i], llama_token_to_str(ctx, embd_inp[i]));
+            fprintf(stderr, "%6d -> '%s'\n", embd_inp[i], llama_token_to_piece(ctx, embd_inp[i]).c_str());
         }
         fprintf(stderr, "\n");
     }

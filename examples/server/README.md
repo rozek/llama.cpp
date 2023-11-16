@@ -4,18 +4,19 @@ This example demonstrates a simple HTTP API server and a simple web front end to
 
 Command line options:
 
--   `--threads N`, `-t N`: Set the number of threads to use during computation.
--   `-m FNAME`, `--model FNAME`: Specify the path to the LLaMA model file (e.g., `models/7B/ggml-model.bin`).
+-   `--threads N`, `-t N`: Set the number of threads to use during generation.
+-   `-tb N, --threads-batch N`: Set the number of threads to use during batch and prompt processing. If not specified, the number of threads will be set to the number of threads used for generation.
+-   `-m FNAME`, `--model FNAME`: Specify the path to the LLaMA model file (e.g., `models/7B/ggml-model.gguf`).
 -   `-m ALIAS`, `--alias ALIAS`: Set an alias for the model. The alias will be returned in API responses.
 -   `-c N`, `--ctx-size N`: Set the size of the prompt context. The default is 512, but LLaMA models were built with a context of 2048, which will provide better results for longer input/inference. The size may differ in other models, for example, baichuan models were build with a context of 4096.
 -   `-ngl N`, `--n-gpu-layers N`: When compiled with appropriate support (currently CLBlast or cuBLAS), this option allows offloading some layers to the GPU for computation. Generally results in increased performance.
 -   `-mg i, --main-gpu i`: When using multiple GPUs this option controls which GPU is used for small tensors for which the overhead of splitting the computation across all GPUs is not worthwhile. The GPU in question will use slightly more VRAM to store a scratch buffer for temporary results. By default GPU 0 is used. Requires cuBLAS.
 -   `-ts SPLIT, --tensor-split SPLIT`: When using multiple GPUs this option controls how large tensors should be split across all GPUs. `SPLIT` is a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order. For example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1. By default the data is split in proportion to VRAM but this may not be optimal for performance. Requires cuBLAS.
--   `-lv, --low-vram`: Do not allocate a VRAM scratch buffer for holding temporary results. Reduces VRAM usage at the cost of performance, particularly prompt processing speed. Requires cuBLAS.
 -   `-b N`, `--batch-size N`: Set the batch size for prompt processing. Default: `512`.
 -   `--memory-f32`: Use 32-bit floats instead of 16-bit floats for memory key+value. Not recommended.
 -   `--mlock`: Lock the model in memory, preventing it from being swapped out when memory-mapped.
 -   `--no-mmap`: Do not memory-map the model. By default, models are mapped into memory, which allows the system to load only the necessary parts of the model as needed.
+-   `--numa`: Attempt optimizations that help on some NUMA systems.
 -   `--lora FNAME`: Apply a LoRA (Low-Rank Adaptation) adapter to the model (implies --no-mmap). This allows you to adapt the pretrained model to specific tasks or domains.
 -   `--lora-base FNAME`: Optional model to use as a base for the layers modified by the LoRA adapter. This flag is used in conjunction with the `--lora` flag, and specifies the base model for the adaptation.
 -   `-to N`, `--timeout N`: Server read/write timeout in seconds. Default `600`.
@@ -47,15 +48,14 @@ To get started right away, run the following command, making sure to use the cor
 ### Unix-based systems (Linux, macOS, etc.):
 
 ```bash
-./server -m models/7B/ggml-model.bin -c 2048
+./server -m models/7B/ggml-model.gguf -c 2048
 ```
 
 ### Windows:
 
 ```powershell
-server.exe -m models\7B\ggml-model.bin -c 2048
+server.exe -m models\7B\ggml-model.gguf -c 2048
 ```
-
 The above command will start a server that by default listens on `127.0.0.1:8080`.
 You can consume the endpoints with Postman or NodeJS with axios library. You can visit the web front end at the same url.
 
@@ -77,34 +77,31 @@ You need to have [Node.js](https://nodejs.org/en) installed.
 ```bash
 mkdir llama-client
 cd llama-client
-npm init
-npm install axios
 ```
 
 Create a index.js file and put inside this:
 
 ```javascript
-const axios = require("axios");
-
 const prompt = `Building a website can be done in 10 simple steps:`;
 
 async function Test() {
-    let result = await axios.post("http://127.0.0.1:8080/completion", {
-        prompt,
-        n_predict: 512,
-    });
-
-    // the response is received until completion finish
-    console.log(result.data.content);
+    let response = await fetch("http://127.0.0.1:8080/completion", {
+        method: 'POST',
+        body: JSON.stringify({
+            prompt,
+            n_predict: 512,
+        })
+    })
+    console.log((await response.json()).content)
 }
 
-Test();
+Test()
 ```
 
 And run it:
 
 ```bash
-node .
+node index.js
 ```
 
 ## API Endpoints
@@ -117,16 +114,16 @@ node .
 
     `top_k`: Limit the next token selection to the K most probable tokens (default: 40).
 
-    `top_p`: Limit the next token selection to a subset of tokens with a cumulative probability above a threshold P (default: 0.9).
+    `top_p`: Limit the next token selection to a subset of tokens with a cumulative probability above a threshold P (default: 0.95).
 
-    `n_predict`: Set the number of tokens to predict when generating text. **Note:** May exceed the set limit slightly if the last token is a partial multibyte character. When 0, no tokens will be generated but the prompt is evaluated into the cache. (default: 128, -1 = infinity).
+    `n_predict`: Set the number of tokens to predict when generating text. **Note:** May exceed the set limit slightly if the last token is a partial multibyte character. When 0, no tokens will be generated but the prompt is evaluated into the cache. (default: -1, -1 = infinity).
 
     `n_keep`: Specify the number of tokens from the initial prompt to retain when the model resets its internal context.
     By default, this value is set to 0 (meaning no tokens are kept). Use `-1` to retain all tokens from the initial prompt.
 
     `stream`: It allows receiving each predicted token in real-time instead of waiting for the completion to finish. To enable this, set to `true`.
 
-    `prompt`: Provide a prompt. Internally, the prompt is compared, and it detects if a part has already been evaluated, and the remaining part will be evaluate. A space is inserted in the front like main.cpp does.
+    `prompt`: Provide a prompt as a string, or as an array of strings and numbers representing tokens. Internally, the prompt is compared, and it detects if a part has already been evaluated, and the remaining part will be evaluate. If the prompt is a string, or an array with the first element given as a string, a space is inserted in the front like main.cpp does.
 
     `stop`: Specify a JSON array of stopping strings.
     These words will not be included in the completion, so make sure to add them to the prompt for the next iteration (default: []).
@@ -151,11 +148,15 @@ node .
 
     `mirostat_eta`: Set the Mirostat learning rate, parameter eta (default: 0.1).
 
+    `grammar`: Set grammar for grammar-based sampling (default: no grammar)
+
     `seed`: Set the random number generator (RNG) seed (default: -1, -1 = random seed).
 
     `ignore_eos`: Ignore end of stream token and continue generating (default: false).
 
     `logit_bias`: Modify the likelihood of a token appearing in the generated text completion. For example, use `"logit_bias": [[15043,1.0]]` to increase the likelihood of the token 'Hello', or `"logit_bias": [[15043,-1.0]]` to decrease its likelihood. Setting the value to false, `"logit_bias": [[15043,false]]` ensures that the token `Hello` is never produced (default: []).
+
+    `n_probs`: If greater than 0, the response also contains the probabilities of top N tokens for each generated token (default: 0)
 
 -   **POST** `/tokenize`: Tokenize a given text.
 
@@ -165,11 +166,27 @@ node .
 
     Note that the special `BOS` token is not added in front of the text and also a space character is not inserted automatically as it is for `/completion`.
 
+-   **POST** `/detokenize`: Convert tokens to text.
+
+    *Options:*
+
+    `tokens`: Set the tokens to detokenize.
+
 -   **POST** `/embedding`: Generate embedding of a given text just as [the embedding example](../embedding) does.
 
     *Options:*
 
     `content`: Set the text to process.
+
+    **POST** `/infill`: For code infilling. Takes a prefix and a suffix and returns the predicted completion as stream.
+
+    *Options:*
+
+    `input_prefix`: Set the prefix of the code to infill.
+
+    `input_suffix`: Set the suffix of the code to infill.
+
+    It also accepts all the options of `/completion` except `stream` and `prompt`.
 
 ## More examples
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 from flask import Flask, jsonify, request, Response
 import urllib.parse
@@ -26,9 +27,9 @@ def is_present(json, key):
         buf = json[key]
     except KeyError:
         return False
+    if json[key] == None:
+        return False
     return True
-
-
 
 #convert chat to prompt
 def convert_chat(messages):
