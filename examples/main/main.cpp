@@ -472,7 +472,7 @@ int main(int argc, char ** argv) {
     }
 
     bool is_antiprompt        = false;
-    bool input_echo           = true;
+    bool input_echo           = false;
     bool need_to_save_session = !path_session.empty() && n_matching_session_tokens < embd_inp.size();
 
     int n_past             = 0;
